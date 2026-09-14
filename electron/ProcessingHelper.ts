@@ -198,6 +198,8 @@ export class ProcessingHelper {
   }
 
   public async processScreenshots(): Promise<void> {
+    if (this.currentProcessingAbortController || this.currentExtraProcessingAbortController) return
+
     const mainWindow = this.deps.getMainWindow()
     if (!mainWindow) return
 
@@ -260,11 +262,11 @@ export class ProcessingHelper {
         return;
       }
 
-      try {
-        // Initialize AbortController
-        this.currentProcessingAbortController = new AbortController()
-        const { signal } = this.currentProcessingAbortController
+      const controller = new AbortController()
+      this.currentProcessingAbortController = controller
+      const { signal } = controller
 
+      try {
         const screenshots = await Promise.all(
           existingScreenshots.map(async (path) => {
             try {
@@ -280,6 +282,8 @@ export class ProcessingHelper {
           })
         )
 
+        if (signal.aborted) return
+
         // Filter out any nulls from failed screenshots
         const validScreenshots = screenshots.filter(Boolean);
         
@@ -288,6 +292,8 @@ export class ProcessingHelper {
         }
 
         const result = await this.processScreenshotsHelper(validScreenshots, signal)
+
+        if (signal.aborted) return
 
         if (!result.success) {
           console.log("Processing failed:", result.error)
@@ -315,6 +321,7 @@ export class ProcessingHelper {
         )
         this.deps.setView("solutions")
       } catch (error: any) {
+        if (signal.aborted) return
         mainWindow.webContents.send(
           this.deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
           error
@@ -335,7 +342,9 @@ export class ProcessingHelper {
         console.log("Resetting view to queue due to error")
         this.deps.setView("queue")
       } finally {
-        this.currentProcessingAbortController = null
+        if (this.currentProcessingAbortController === controller) {
+          this.currentProcessingAbortController = null
+        }
       }
     } else {
       // view == 'solutions'
@@ -362,8 +371,9 @@ export class ProcessingHelper {
       mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.DEBUG_START)
 
       // Initialize AbortController
-      this.currentExtraProcessingAbortController = new AbortController()
-      const { signal } = this.currentExtraProcessingAbortController
+      const controller = new AbortController()
+      this.currentExtraProcessingAbortController = controller
+      const { signal } = controller
 
       try {
         // Get all screenshots (both main and extra) for processing
@@ -392,6 +402,8 @@ export class ProcessingHelper {
           })
         )
         
+        if (signal.aborted) return
+
         // Filter out any nulls from failed screenshots
         const validScreenshots = screenshots.filter(Boolean);
         
@@ -409,6 +421,8 @@ export class ProcessingHelper {
           signal
         )
 
+        if (signal.aborted) return
+
         if (result.success) {
           this.deps.setHasDebugged(true)
           mainWindow.webContents.send(
@@ -422,6 +436,7 @@ export class ProcessingHelper {
           )
         }
       } catch (error: any) {
+        if (signal.aborted) return
         if (axios.isCancel(error)) {
           mainWindow.webContents.send(
             this.deps.PROCESSING_EVENTS.DEBUG_ERROR,
@@ -434,7 +449,9 @@ export class ProcessingHelper {
           )
         }
       } finally {
-        this.currentExtraProcessingAbortController = null
+        if (this.currentExtraProcessingAbortController === controller) {
+          this.currentExtraProcessingAbortController = null
+        }
       }
     }
   }
@@ -446,6 +463,7 @@ export class ProcessingHelper {
     try {
       const config = configHelper.loadConfig();
       const language = await this.getLanguage();
+      signal.throwIfAborted();
       const mainWindow = this.deps.getMainWindow();
       
       // Step 1: Extract problem info using AI Vision API (OpenAI or Gemini)
@@ -501,7 +519,7 @@ export class ProcessingHelper {
           messages: messages,
           max_tokens: 4000,
           temperature: 0.2
-        });
+        }, { signal });
 
         // Parse the response
         try {
@@ -609,7 +627,7 @@ export class ProcessingHelper {
             max_tokens: 4000,
             messages: messages,
             temperature: 0.2
-          });
+          }, { signal });
 
           const responseText = (response.content[0] as { type: 'text', text: string }).text;
           const jsonText = responseText.replace(/```json|```/g, '').trim();
@@ -637,6 +655,8 @@ export class ProcessingHelper {
         }
       }
       
+      signal.throwIfAborted();
+
       // Update the user on progress
       if (mainWindow) {
         mainWindow.webContents.send("processing-status", {
@@ -657,6 +677,7 @@ export class ProcessingHelper {
 
         // Generate solutions after successful extraction
         const solutionsResult = await this.generateSolutionsHelper(signal);
+        signal.throwIfAborted();
         if (solutionsResult.success) {
           // Clear any existing extra screenshots before transitioning to solutions view
           this.screenshotHelper.clearExtraScreenshotQueue();
@@ -667,10 +688,6 @@ export class ProcessingHelper {
             progress: 100
           });
           
-          mainWindow.webContents.send(
-            this.deps.PROCESSING_EVENTS.SOLUTION_SUCCESS,
-            solutionsResult.data
-          );
           return { success: true, data: solutionsResult.data };
         } else {
           throw new Error(
@@ -719,6 +736,7 @@ export class ProcessingHelper {
     try {
       const problemInfo = this.deps.getProblemInfo();
       const language = await this.getLanguage();
+      signal.throwIfAborted();
       const config = configHelper.loadConfig();
       const mainWindow = this.deps.getMainWindow();
 
@@ -783,7 +801,7 @@ Your solution should be efficient, well-commented, and handle edge cases.
           ],
           max_tokens: 4000,
           temperature: 0.2
-        });
+        }, { signal });
 
         responseContent = solutionResponse.choices[0].message.content;
       } else if (config.apiProvider === "gemini")  {
@@ -863,7 +881,7 @@ Your solution should be efficient, well-commented, and handle edge cases.
             max_tokens: 4000,
             messages: messages,
             temperature: 0.2
-          });
+          }, { signal });
 
           responseContent = (response.content[0] as { type: 'text', text: string }).text;
         } catch (error: any) {
@@ -990,6 +1008,7 @@ Your solution should be efficient, well-commented, and handle edge cases.
     try {
       const problemInfo = this.deps.getProblemInfo();
       const language = await this.getLanguage();
+      signal.throwIfAborted();
       const config = configHelper.loadConfig();
       const mainWindow = this.deps.getMainWindow();
 
@@ -1072,7 +1091,7 @@ If you include code examples, use proper markdown code blocks with language spec
           messages: messages,
           max_tokens: 4000,
           temperature: 0.2
-        });
+        }, { signal });
         
         debugContent = debugResponse.choices[0].message.content;
       } else if (config.apiProvider === "gemini")  {
@@ -1221,7 +1240,7 @@ If you include code examples, use proper markdown code blocks with language spec
             max_tokens: 4000,
             messages: messages,
             temperature: 0.2
-          });
+          }, { signal });
           
           debugContent = (response.content[0] as { type: 'text', text: string }).text;
         } catch (error: any) {
@@ -1247,7 +1266,8 @@ If you include code examples, use proper markdown code blocks with language spec
         }
       }
       
-      
+      signal.throwIfAborted();
+
       if (mainWindow) {
         mainWindow.webContents.send("processing-status", {
           message: "Debug analysis complete",
