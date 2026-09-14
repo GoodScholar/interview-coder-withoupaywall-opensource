@@ -81,7 +81,7 @@ const electronAPI = {
     }
   },
   onDebugSuccess: (callback: (data: any) => void) => {
-    const subscription = (_: any, data: any) => callback(data)
+    const subscription = (_: unknown, data: unknown) => callback(data)
     ipcRenderer.on("debug-success", subscription)
     return () => {
       ipcRenderer.removeListener("debug-success", subscription)
