@@ -4,10 +4,11 @@ import path from "node:path"
 import { app } from "electron"
 import { EventEmitter } from "events"
 import { OpenAI } from "openai"
+import { APIProvider, DEFAULT_PROVIDER, MODEL_PROVIDERS } from "./modelConfig"
 
 interface Config {
   apiKey: string;
-  apiProvider: "openai" | "gemini" | "anthropic";  // Added provider selection
+  apiProvider: APIProvider;  // Added provider selection
   extractionModel: string;
   solutionModel: string;
   debuggingModel: string;
@@ -19,10 +20,10 @@ export class ConfigHelper extends EventEmitter {
   private configPath: string;
   private defaultConfig: Config = {
     apiKey: "",
-    apiProvider: "gemini", // Default to Gemini
-    extractionModel: "gemini-2.0-flash", // Default to Flash for faster responses
-    solutionModel: "gemini-2.0-flash",
-    debuggingModel: "gemini-2.0-flash",
+    apiProvider: DEFAULT_PROVIDER,
+    extractionModel: MODEL_PROVIDERS[DEFAULT_PROVIDER].defaultModel,
+    solutionModel: MODEL_PROVIDERS[DEFAULT_PROVIDER].defaultModel,
+    debuggingModel: MODEL_PROVIDERS[DEFAULT_PROVIDER].defaultModel,
     language: "python",
     opacity: 1.0
   };
@@ -58,34 +59,9 @@ export class ConfigHelper extends EventEmitter {
   /**
    * Validate and sanitize model selection to ensure only allowed models are used
    */
-  private sanitizeModelSelection(model: string, provider: "openai" | "gemini" | "anthropic"): string {
-    if (provider === "openai") {
-      // Only allow gpt-4o and gpt-4o-mini for OpenAI
-      const allowedModels = ['gpt-4o', 'gpt-4o-mini'];
-      if (!allowedModels.includes(model)) {
-        console.warn(`Invalid OpenAI model specified: ${model}. Using default model: gpt-4o`);
-        return 'gpt-4o';
-      }
-      return model;
-    } else if (provider === "gemini")  {
-      // Only allow gemini-1.5-pro and gemini-2.0-flash for Gemini
-      const allowedModels = ['gemini-1.5-pro', 'gemini-2.0-flash'];
-      if (!allowedModels.includes(model)) {
-        console.warn(`Invalid Gemini model specified: ${model}. Using default model: gemini-2.0-flash`);
-        return 'gemini-2.0-flash'; // Changed default to flash
-      }
-      return model;
-    }  else if (provider === "anthropic") {
-      // Only allow Claude models
-      const allowedModels = ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-opus-20240229'];
-      if (!allowedModels.includes(model)) {
-        console.warn(`Invalid Anthropic model specified: ${model}. Using default model: claude-3-7-sonnet-20250219`);
-        return 'claude-3-7-sonnet-20250219';
-      }
-      return model;
-    }
-    // Default fallback
-    return model;
+  private sanitizeModelSelection(model: string, provider: APIProvider): string {
+    const { models, defaultModel } = MODEL_PROVIDERS[provider];
+    return models.some(candidate => candidate.id === model) ? model : defaultModel;
   }
 
   public loadConfig(): Config {
@@ -99,17 +75,11 @@ export class ConfigHelper extends EventEmitter {
           config.apiProvider = "gemini"; // Default to Gemini if invalid
         }
         
-        // Sanitize model selections to ensure only allowed models are used
-        if (config.extractionModel) {
-          config.extractionModel = this.sanitizeModelSelection(config.extractionModel, config.apiProvider);
-        }
-        if (config.solutionModel) {
-          config.solutionModel = this.sanitizeModelSelection(config.solutionModel, config.apiProvider);
-        }
-        if (config.debuggingModel) {
-          config.debuggingModel = this.sanitizeModelSelection(config.debuggingModel, config.apiProvider);
-        }
-        
+        // Also normalize missing fields in legacy configurations for this provider.
+        config.extractionModel = this.sanitizeModelSelection(config.extractionModel, config.apiProvider);
+        config.solutionModel = this.sanitizeModelSelection(config.solutionModel, config.apiProvider);
+        config.debuggingModel = this.sanitizeModelSelection(config.debuggingModel, config.apiProvider);
+
         return {
           ...this.defaultConfig,
           ...config
@@ -171,21 +141,12 @@ export class ConfigHelper extends EventEmitter {
       
       // On provider changes, default only models the caller did not select
       if (updates.apiProvider && updates.apiProvider !== currentConfig.apiProvider) {
-        if (updates.apiProvider === "openai") {
-          updates.extractionModel ||= "gpt-4o";
-          updates.solutionModel ||= "gpt-4o";
-          updates.debuggingModel ||= "gpt-4o";
-        } else if (updates.apiProvider === "anthropic") {
-          updates.extractionModel ||= "claude-3-7-sonnet-20250219";
-          updates.solutionModel ||= "claude-3-7-sonnet-20250219";
-          updates.debuggingModel ||= "claude-3-7-sonnet-20250219";
-        } else {
-          updates.extractionModel ||= "gemini-2.0-flash";
-          updates.solutionModel ||= "gemini-2.0-flash";
-          updates.debuggingModel ||= "gemini-2.0-flash";
-        }
+        const defaultModel = MODEL_PROVIDERS[provider].defaultModel;
+        updates.extractionModel ||= defaultModel;
+        updates.solutionModel ||= defaultModel;
+        updates.debuggingModel ||= defaultModel;
       }
-      
+
       // Sanitize model selections in the updates
       if (updates.extractionModel) {
         updates.extractionModel = this.sanitizeModelSelection(updates.extractionModel, provider);
@@ -226,7 +187,7 @@ export class ConfigHelper extends EventEmitter {
   /**
    * Validate the API key format
    */
-  public isValidApiKeyFormat(apiKey: string, provider?: "openai" | "gemini" | "anthropic" ): boolean {
+  public isValidApiKeyFormat(apiKey: string, provider?: APIProvider ): boolean {
     // If provider is not specified, attempt to auto-detect
     if (!provider) {
       if (apiKey.trim().startsWith('sk-')) {
@@ -289,7 +250,7 @@ export class ConfigHelper extends EventEmitter {
   /**
    * Test API key with the selected provider
    */
-  public async testApiKey(apiKey: string, provider?: "openai" | "gemini" | "anthropic"): Promise<{valid: boolean, error?: string}> {
+  public async testApiKey(apiKey: string, provider?: APIProvider): Promise<{valid: boolean, error?: string}> {
     // Auto-detect provider based on key format if not specified
     if (!provider) {
       if (apiKey.trim().startsWith('sk-')) {

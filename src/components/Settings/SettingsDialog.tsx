@@ -13,163 +13,18 @@ import { Button } from "../ui/button";
 import { Settings } from "lucide-react";
 import { useToast } from "../../contexts/toast";
 
-type APIProvider = "openai" | "gemini" | "anthropic";
-
-type AIModel = {
-  id: string;
-  name: string;
-  description: string;
-};
+import { APIProvider, DEFAULT_PROVIDER, MODEL_PROVIDERS } from "../../../electron/modelConfig";
 
 type ModelCategory = {
   key: 'extractionModel' | 'solutionModel' | 'debuggingModel';
   title: string;
   description: string;
-  openaiModels: AIModel[];
-  geminiModels: AIModel[];
-  anthropicModels: AIModel[];
 };
 
-// Define available models for each category
 const modelCategories: ModelCategory[] = [
-  {
-    key: 'extractionModel',
-    title: 'Problem Extraction',
-    description: 'Model used to analyze screenshots and extract problem details',
-    openaiModels: [
-      {
-        id: "gpt-4o",
-        name: "gpt-4o",
-        description: "Best overall performance for problem extraction"
-      },
-      {
-        id: "gpt-4o-mini",
-        name: "gpt-4o-mini",
-        description: "Faster, more cost-effective option"
-      }
-    ],
-    geminiModels: [
-      {
-        id: "gemini-1.5-pro",
-        name: "Gemini 1.5 Pro",
-        description: "Best overall performance for problem extraction"
-      },
-      {
-        id: "gemini-2.0-flash",
-        name: "Gemini 2.0 Flash",
-        description: "Faster, more cost-effective option"
-      }
-    ],
-    anthropicModels: [
-      {
-        id: "claude-3-7-sonnet-20250219",
-        name: "Claude 3.7 Sonnet",
-        description: "Best overall performance for problem extraction"
-      },
-      {
-        id: "claude-3-5-sonnet-20241022",
-        name: "Claude 3.5 Sonnet",
-        description: "Balanced performance and speed"
-      },
-      {
-        id: "claude-3-opus-20240229",
-        name: "Claude 3 Opus",
-        description: "Top-level intelligence, fluency, and understanding"
-      }
-    ]
-  },
-  {
-    key: 'solutionModel',
-    title: 'Solution Generation',
-    description: 'Model used to generate coding solutions',
-    openaiModels: [
-      {
-        id: "gpt-4o",
-        name: "gpt-4o",
-        description: "Strong overall performance for coding tasks"
-      },
-      {
-        id: "gpt-4o-mini",
-        name: "gpt-4o-mini",
-        description: "Faster, more cost-effective option"
-      }
-    ],
-    geminiModels: [
-      {
-        id: "gemini-1.5-pro",
-        name: "Gemini 1.5 Pro",
-        description: "Strong overall performance for coding tasks"
-      },
-      {
-        id: "gemini-2.0-flash",
-        name: "Gemini 2.0 Flash",
-        description: "Faster, more cost-effective option"
-      }
-    ],
-    anthropicModels: [
-      {
-        id: "claude-3-7-sonnet-20250219",
-        name: "Claude 3.7 Sonnet",
-        description: "Strong overall performance for coding tasks"
-      },
-      {
-        id: "claude-3-5-sonnet-20241022",
-        name: "Claude 3.5 Sonnet",
-        description: "Balanced performance and speed"
-      },
-      {
-        id: "claude-3-opus-20240229",
-        name: "Claude 3 Opus",
-        description: "Top-level intelligence, fluency, and understanding"
-      }
-    ]
-  },
-  {
-    key: 'debuggingModel',
-    title: 'Debugging',
-    description: 'Model used to debug and improve solutions',
-    openaiModels: [
-      {
-        id: "gpt-4o",
-        name: "gpt-4o",
-        description: "Best for analyzing code and error messages"
-      },
-      {
-        id: "gpt-4o-mini",
-        name: "gpt-4o-mini",
-        description: "Faster, more cost-effective option"
-      }
-    ],
-    geminiModels: [
-      {
-        id: "gemini-1.5-pro",
-        name: "Gemini 1.5 Pro",
-        description: "Best for analyzing code and error messages"
-      },
-      {
-        id: "gemini-2.0-flash",
-        name: "Gemini 2.0 Flash",
-        description: "Faster, more cost-effective option"
-      }
-    ],
-    anthropicModels: [
-      {
-        id: "claude-3-7-sonnet-20250219",
-        name: "Claude 3.7 Sonnet",
-        description: "Best for analyzing code and error messages"
-      },
-      {
-        id: "claude-3-5-sonnet-20241022",
-        name: "Claude 3.5 Sonnet",
-        description: "Balanced performance and speed"
-      },
-      {
-        id: "claude-3-opus-20240229",
-        name: "Claude 3 Opus",
-        description: "Top-level intelligence, fluency, and understanding"
-      }
-    ]
-  }
+  { key: 'extractionModel', title: 'Problem Extraction', description: 'Model used to analyze screenshots and extract problem details' },
+  { key: 'solutionModel', title: 'Solution Generation', description: 'Model used to generate coding solutions' },
+  { key: 'debuggingModel', title: 'Debugging', description: 'Model used to debug and improve solutions' },
 ];
 
 interface SettingsDialogProps {
@@ -180,10 +35,10 @@ interface SettingsDialogProps {
 export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDialogProps) {
   const [open, setOpen] = useState(externalOpen || false);
   const [apiKey, setApiKey] = useState("");
-  const [apiProvider, setApiProvider] = useState<APIProvider>("openai");
-  const [extractionModel, setExtractionModel] = useState("gpt-4o");
-  const [solutionModel, setSolutionModel] = useState("gpt-4o");
-  const [debuggingModel, setDebuggingModel] = useState("gpt-4o");
+  const [apiProvider, setApiProvider] = useState<APIProvider>(DEFAULT_PROVIDER);
+  const [extractionModel, setExtractionModel] = useState(MODEL_PROVIDERS[DEFAULT_PROVIDER].defaultModel);
+  const [solutionModel, setSolutionModel] = useState(MODEL_PROVIDERS[DEFAULT_PROVIDER].defaultModel);
+  const [debuggingModel, setDebuggingModel] = useState(MODEL_PROVIDERS[DEFAULT_PROVIDER].defaultModel);
   const [isLoading, setIsLoading] = useState(false);
   const { showToast } = useToast();
 
@@ -219,10 +74,12 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
         .getConfig()
         .then((config: Config) => {
           setApiKey(config.apiKey || "");
-          setApiProvider(config.apiProvider || "openai");
-          setExtractionModel(config.extractionModel || "gpt-4o");
-          setSolutionModel(config.solutionModel || "gpt-4o");
-          setDebuggingModel(config.debuggingModel || "gpt-4o");
+          const provider = config.apiProvider || DEFAULT_PROVIDER;
+          const defaultModel = MODEL_PROVIDERS[provider].defaultModel;
+          setApiProvider(provider);
+          setExtractionModel(config.extractionModel || defaultModel);
+          setSolutionModel(config.solutionModel || defaultModel);
+          setDebuggingModel(config.debuggingModel || defaultModel);
         })
         .catch((error: unknown) => {
           console.error("Failed to load config:", error);
@@ -238,20 +95,10 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
   const handleProviderChange = (provider: APIProvider) => {
     setApiProvider(provider);
     
-    // Reset models to defaults when changing provider
-    if (provider === "openai") {
-      setExtractionModel("gpt-4o");
-      setSolutionModel("gpt-4o");
-      setDebuggingModel("gpt-4o");
-    } else if (provider === "gemini") {
-      setExtractionModel("gemini-1.5-pro");
-      setSolutionModel("gemini-1.5-pro");
-      setDebuggingModel("gemini-1.5-pro");
-    } else if (provider === "anthropic") {
-      setExtractionModel("claude-3-7-sonnet-20250219");
-      setSolutionModel("claude-3-7-sonnet-20250219");
-      setDebuggingModel("claude-3-7-sonnet-20250219");
-    }
+    const defaultModel = MODEL_PROVIDERS[provider].defaultModel;
+    setExtractionModel(defaultModel);
+    setSolutionModel(defaultModel);
+    setDebuggingModel(defaultModel);
   };
 
   const handleSave = async () => {
@@ -508,10 +355,7 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
             
             {modelCategories.map((category) => {
               // Get the appropriate model list based on selected provider
-              const models = 
-                apiProvider === "openai" ? category.openaiModels : 
-                apiProvider === "gemini" ? category.geminiModels :
-                category.anthropicModels;
+              const models = MODEL_PROVIDERS[apiProvider].models;
               
               return (
                 <div key={category.key} className="mb-4">

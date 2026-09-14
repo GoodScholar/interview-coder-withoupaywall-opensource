@@ -1,3 +1,4 @@
+import { MODEL_PROVIDERS } from "./modelConfig"
 // ProcessingHelper.ts
 import fs from "node:fs"
 import path from "node:path"
@@ -496,7 +497,7 @@ export class ProcessingHelper {
 
         // Send to OpenAI Vision API
         const extractionResponse = await this.openaiClient.chat.completions.create({
-          model: config.extractionModel || "gpt-4o",
+          model: config.extractionModel || MODEL_PROVIDERS.openai.defaultModel,
           messages: messages,
           max_tokens: 4000,
           temperature: 0.2
@@ -545,7 +546,7 @@ export class ProcessingHelper {
 
           // Make API request to Gemini
           const response = await axios.default.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/${config.extractionModel || "gemini-2.0-flash"}:generateContent?key=${this.geminiApiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${config.extractionModel || MODEL_PROVIDERS.gemini.defaultModel}:generateContent?key=${this.geminiApiKey}`,
             {
               contents: geminiMessages,
               generationConfig: {
@@ -604,7 +605,7 @@ export class ProcessingHelper {
           ];
 
           const response = await this.anthropicClient.messages.create({
-            model: config.extractionModel || "claude-3-7-sonnet-20250219",
+            model: config.extractionModel || MODEL_PROVIDERS.anthropic.defaultModel,
             max_tokens: 4000,
             messages: messages,
             temperature: 0.2
@@ -775,7 +776,7 @@ Your solution should be efficient, well-commented, and handle edge cases.
         
         // Send to OpenAI API
         const solutionResponse = await this.openaiClient.chat.completions.create({
-          model: config.solutionModel || "gpt-4o",
+          model: config.solutionModel || MODEL_PROVIDERS.openai.defaultModel,
           messages: [
             { role: "system", content: "You are an expert coding interview assistant. Provide clear, optimal solutions with detailed explanations." },
             { role: "user", content: promptText }
@@ -809,7 +810,7 @@ Your solution should be efficient, well-commented, and handle edge cases.
 
           // Make API request to Gemini
           const response = await axios.default.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/${config.solutionModel || "gemini-2.0-flash"}:generateContent?key=${this.geminiApiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${config.solutionModel || MODEL_PROVIDERS.gemini.defaultModel}:generateContent?key=${this.geminiApiKey}`,
             {
               contents: geminiMessages,
               generationConfig: {
@@ -858,7 +859,7 @@ Your solution should be efficient, well-commented, and handle edge cases.
 
           // Send to Anthropic API
           const response = await this.anthropicClient.messages.create({
-            model: config.solutionModel || "claude-3-7-sonnet-20250219",
+            model: config.solutionModel || MODEL_PROVIDERS.anthropic.defaultModel,
             max_tokens: 4000,
             messages: messages,
             temperature: 0.2
@@ -1067,7 +1068,7 @@ If you include code examples, use proper markdown code blocks with language spec
         }
 
         const debugResponse = await this.openaiClient.chat.completions.create({
-          model: config.debuggingModel || "gpt-4o",
+          model: config.debuggingModel || MODEL_PROVIDERS.openai.defaultModel,
           messages: messages,
           max_tokens: 4000,
           temperature: 0.2
@@ -1130,7 +1131,7 @@ If you include code examples, use proper markdown code blocks with language spec
           }
 
           const response = await axios.default.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/${config.debuggingModel || "gemini-2.0-flash"}:generateContent?key=${this.geminiApiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${config.debuggingModel || MODEL_PROVIDERS.gemini.defaultModel}:generateContent?key=${this.geminiApiKey}`,
             {
               contents: geminiMessages,
               generationConfig: {
@@ -1216,7 +1217,7 @@ If you include code examples, use proper markdown code blocks with language spec
           }
 
           const response = await this.anthropicClient.messages.create({
-            model: config.debuggingModel || "claude-3-7-sonnet-20250219",
+            model: config.debuggingModel || MODEL_PROVIDERS.anthropic.defaultModel,
             max_tokens: 4000,
             messages: messages,
             temperature: 0.2

@@ -16,6 +16,13 @@ module.exports = function loadTypeScript(relativePath, mocks = {}) {
   const run = vm.runInThisContext(
     `(function(require, module, exports) { ${outputText}\n})`, { filename },
   );
-  run(name => Object.hasOwn(mocks, name) ? mocks[name] : localRequire(name), module, module.exports);
+  run(name => {
+    if (Object.hasOwn(mocks, name)) return mocks[name];
+    const dependency = path.resolve(path.dirname(filename), name + '.ts');
+    if (name.startsWith('.') && fs.existsSync(dependency)) {
+      return loadTypeScript(path.relative(path.resolve(__dirname, '../..'), dependency), mocks);
+    }
+    return localRequire(name);
+  }, module, module.exports);
   return module.exports;
 };
