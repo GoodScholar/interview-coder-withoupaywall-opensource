@@ -368,10 +368,30 @@ export class ScreenshotHelper {
     return screenshotPath;
   }
 
+  private isManagedScreenshot(filepath: unknown): filepath is string {
+    return (
+      typeof filepath === "string" &&
+      (this.screenshotQueue.includes(filepath) ||
+        this.extraScreenshotQueue.includes(filepath))
+    );
+  }
+
+  private isRegularManagedScreenshot(filepath: unknown): filepath is string {
+    if (!this.isManagedScreenshot(filepath)) {
+      return false;
+    }
+
+    try {
+      return fs.lstatSync(filepath).isFile();
+    } catch {
+      return false;
+    }
+  }
+
   public async getImagePreview(filepath: string): Promise<string> {
     try {
-      if (!fs.existsSync(filepath)) {
-        console.error(`Image file not found: ${filepath}`);
+      if (!this.isRegularManagedScreenshot(filepath)) {
+        console.error(`Image file is not a managed screenshot: ${filepath}`);
         return "";
       }
 
@@ -387,11 +407,13 @@ export class ScreenshotHelper {
     path: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      if (fs.existsSync(path)) {
-        await fs.promises.unlink(path);
+      if (!this.isRegularManagedScreenshot(path)) {
+        return { success: false, error: "Screenshot is not managed" };
       }
 
-      if (this.view === "queue") {
+      await fs.promises.unlink(path);
+
+      if (this.screenshotQueue.includes(path)) {
         this.screenshotQueue = this.screenshotQueue.filter(
           (filePath) => filePath !== path
         );
