@@ -429,7 +429,11 @@ export class ScreenshotHelper {
       fs.lstatSync(filepath);
       return false;
     } catch (error) {
-      return (error as NodeJS.ErrnoException).code === "ENOENT";
+      return (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      );
     }
   }
 
