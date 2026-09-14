@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
     types: [opened, synchronize, reopened]
 
 jobs:
@@ -22,22 +21,17 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 20
+        node-version: 22
         cache: 'npm'
       
     - name: Install dependencies
-      run: npm i
+      run: npm ci
 
-    - name: Clearing previous builds
-      run: npm run clean
-      
-    - name: Run Linter
-      run: npm run lint
-      continue-on-error: true
+    - name: Lint and strict types (no new diagnostics)
+      run: npm run check:quality
 
-    - name: Type Check
-      run: npx tsc --noEmit
-      continue-on-error: true
+    - name: Electron type check
+      run: npm run typecheck:electron
 
     - name: Build
       run: npm run build
