@@ -139,6 +139,7 @@ export class ConfigHelper extends EventEmitter {
       fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
     } catch (err) {
       console.error("Error saving config:", err);
+      throw err;
     }
   }
 
@@ -210,7 +211,7 @@ export class ConfigHelper extends EventEmitter {
       return newConfig;
     } catch (error) {
       console.error('Error updating config:', error);
-      return this.defaultConfig;
+      throw error;
     }
   }
 
