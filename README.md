@@ -20,7 +20,7 @@
 
 ### 1. 准备环境
 
-- **Node.js 22.x 和 npm**：推荐使用此版本；锁文件中的 Vite、rimraf 和 electron-store 依赖约束均允许 Node.js 22。仓库现有 CI 配置使用 Node.js 20。
+- **Node.js 22.x 和 npm**：推荐使用此版本；锁文件中的 Vite、rimraf 和 electron-store 依赖约束均允许 Node.js 22。仓库 CI 同样使用 Node.js 22。
 - **一个模型服务商的 API Key**：OpenAI、Gemini 或 Anthropic，需具有所选模型的访问权限和可用额度。
 - **桌面环境与网络连接**：代码包含 macOS、Windows 和 Linux 相关配置，实际截图与窗口行为需在目标系统上验证。
 - **macOS 截屏权限**：在系统设置中找到屏幕录制权限，为实际运行应用的程序授权；从终端或 IDE 启动时，也检查对应程序的权限，授权后重新启动。
@@ -96,7 +96,7 @@ npm run run-prod
 
 应用不收取订阅费；模型 API 的费用、限额和可用性由所选服务商决定。一次题目分析包含识题和解题阶段，补充调试也会产生 API 请求。
 
-模型选项定义在 [SettingsDialog.tsx](src/components/Settings/SettingsDialog.tsx)，允许的模型值与默认值定义在 [ConfigHelper.ts](electron/ConfigHelper.ts)，调用逻辑位于 [ProcessingHelper.ts](electron/ProcessingHelper.ts)。更新或新增模型时需同步检查这些位置。
+模型选项、服务商类型与默认值统一定义在 [modelConfig.ts](electron/modelConfig.ts)，设置界面、配置校验和请求默认值共用这份定义。调用逻辑位于 [ProcessingHelper.ts](electron/ProcessingHelper.ts)；新增模型时请同时确认其接口兼容性。
 
 ## 数据处理与已知限制
 
@@ -142,7 +142,7 @@ npm run run-prod
 
 检查 Node.js 版本及 `npm install` 是否成功，再执行 `npm run build`。构建命令已经清理旧的 `dist/` 与 `dist-electron/`，通常无需另外运行清理命令。
 
-旧的 `stealth-run.sh` 和 `stealth-run.bat` 会删除项目根目录的 `.env`。建议使用快速开始中的命令。
+也可使用 `stealth-run.sh`（macOS/Linux）或 `stealth-run.bat`（Windows）构建并启动。脚本会保留 `.env`，构建失败时立即退出；应用在前台运行，使用期间请保持终端开启。
 
 ## 开发与构建
 
@@ -160,13 +160,16 @@ npm run dev
 | --- | --- |
 | `npm run build` | 清理并构建前端和 Electron 主进程 |
 | `npm run run-prod` | 启动已有构建产物 |
-| `npm run lint` | 执行现有 ESLint 检查 |
+| `npm test` | 运行自动发现的回归测试 |
+| `npm run check:quality` | 阻止新增 ESLint 和严格 TypeScript 诊断 |
+| `npm run typecheck:electron` | 检查 Electron 项目类型 |
+| `npm run lint` | 执行完整 JavaScript/TypeScript ESLint 检查 |
 | `npm run package-mac` | 构建 macOS DMG / ZIP |
 | `npm run package-win` | 构建 Windows 安装包 |
 
 安装包输出到 `release/`。macOS 打包配置启用了签名和公证，需要相应的开发者凭据；打包配置还引用根目录 `.env`。打包前请检查 [package.json](package.json) 中的资源、签名和发布目标设置。
 
-当前 `npm test` 仅输出提示信息，尚未配置自动化测试，不能用其成功退出证明功能通过验证。
+CI 会运行回归测试、Electron 类型检查、生产构建和新增诊断检查。仓库仍有历史 Lint 和严格类型错误，质量基线通过表示没有新增诊断，并不表示这些历史问题已全部修复。基线范围和维护方式见[质量检查说明](tooling/README.md)。
 
 ## 参与贡献
 
