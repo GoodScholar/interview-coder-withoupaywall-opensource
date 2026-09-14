@@ -109,6 +109,7 @@ export class ConfigHelper extends EventEmitter {
       fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
     } catch (err) {
       console.error("Error saving config:", err);
+      throw err;
     }
   }
 
@@ -122,13 +123,13 @@ export class ConfigHelper extends EventEmitter {
       
       // Auto-detect provider based on API key format if a new key is provided
       if (updates.apiKey && !updates.apiProvider) {
-        // If API key starts with "sk-", it's likely an OpenAI key
-        if (updates.apiKey.trim().startsWith('sk-')) {
-          provider = "openai";
-          console.log("Auto-detected OpenAI API key format");
-        } else if (updates.apiKey.trim().startsWith('sk-ant-')) {
+        // Check the specific prefix before the shared "sk-" prefix.
+        if (updates.apiKey.trim().startsWith('sk-ant-')) {
           provider = "anthropic";
           console.log("Auto-detected Anthropic API key format");
+        } else if (updates.apiKey.trim().startsWith('sk-')) {
+          provider = "openai";
+          console.log("Auto-detected OpenAI API key format");
         } else {
           provider = "gemini";
           console.log("Using Gemini API key format (default)");
@@ -171,7 +172,7 @@ export class ConfigHelper extends EventEmitter {
       return newConfig;
     } catch (error) {
       console.error('Error updating config:', error);
-      return this.defaultConfig;
+      throw error;
     }
   }
 
