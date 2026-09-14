@@ -168,20 +168,20 @@ export class ConfigHelper extends EventEmitter {
         updates.apiProvider = provider;
       }
       
-      // If provider is changing, reset models to the default for that provider
+      // On provider changes, default only models the caller did not select
       if (updates.apiProvider && updates.apiProvider !== currentConfig.apiProvider) {
         if (updates.apiProvider === "openai") {
-          updates.extractionModel = "gpt-4o";
-          updates.solutionModel = "gpt-4o";
-          updates.debuggingModel = "gpt-4o";
+          updates.extractionModel ||= "gpt-4o";
+          updates.solutionModel ||= "gpt-4o";
+          updates.debuggingModel ||= "gpt-4o";
         } else if (updates.apiProvider === "anthropic") {
-          updates.extractionModel = "claude-3-7-sonnet-20250219";
-          updates.solutionModel = "claude-3-7-sonnet-20250219";
-          updates.debuggingModel = "claude-3-7-sonnet-20250219";
+          updates.extractionModel ||= "claude-3-7-sonnet-20250219";
+          updates.solutionModel ||= "claude-3-7-sonnet-20250219";
+          updates.debuggingModel ||= "claude-3-7-sonnet-20250219";
         } else {
-          updates.extractionModel = "gemini-2.0-flash";
-          updates.solutionModel = "gemini-2.0-flash";
-          updates.debuggingModel = "gemini-2.0-flash";
+          updates.extractionModel ||= "gemini-2.0-flash";
+          updates.solutionModel ||= "gemini-2.0-flash";
+          updates.debuggingModel ||= "gemini-2.0-flash";
         }
       }
       
