@@ -19,6 +19,7 @@ export class ScreenshotHelper {
   private readonly screenshotDir: string;
   private readonly extraScreenshotDir: string;
   private readonly tempDir: string;
+  private readonly managedScreenshotDirectories: string[];
 
   private view: "queue" | "solutions" | "debug" = "queue";
 
@@ -38,6 +39,10 @@ export class ScreenshotHelper {
 
     // Create directories if they don't exist
     this.ensureDirectoriesExist();
+    this.managedScreenshotDirectories = [
+      fs.realpathSync(this.screenshotDir),
+      fs.realpathSync(this.extraScreenshotDir),
+    ];
 
     // Clean existing screenshot directories when starting the app
     this.cleanScreenshotDirectories();
@@ -376,16 +381,65 @@ export class ScreenshotHelper {
     );
   }
 
+  private isWithinManagedDirectory(filepath: string, allowEqual = false): boolean {
+    return this.managedScreenshotDirectories.some((directory) => {
+      const relativePath = path.relative(directory, filepath);
+      return (
+        (allowEqual && relativePath === "") ||
+        (relativePath !== "" &&
+          relativePath !== ".." &&
+          !relativePath.startsWith(`..${path.sep}`) &&
+          !path.isAbsolute(relativePath))
+      );
+    });
+  }
+
+  private hasSafeManagedParent(filepath: string): boolean {
+    try {
+      return this.isWithinManagedDirectory(
+        fs.realpathSync(path.dirname(filepath)),
+        true
+      );
+    } catch {
+      return false;
+    }
+  }
+
   private isRegularManagedScreenshot(filepath: unknown): filepath is string {
-    if (!this.isManagedScreenshot(filepath)) {
+    if (!this.isManagedScreenshot(filepath) || !this.hasSafeManagedParent(filepath)) {
       return false;
     }
 
     try {
-      return fs.lstatSync(filepath).isFile();
+      return (
+        fs.lstatSync(filepath).isFile() &&
+        this.isWithinManagedDirectory(fs.realpathSync(filepath))
+      );
     } catch {
       return false;
     }
+  }
+
+  private isMissingManagedScreenshot(filepath: unknown): filepath is string {
+    if (!this.isManagedScreenshot(filepath) || !this.hasSafeManagedParent(filepath)) {
+      return false;
+    }
+
+    try {
+      fs.lstatSync(filepath);
+      return false;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === "ENOENT";
+    }
+  }
+
+  private removeManagedScreenshot(filepath: string): void {
+    this.screenshotQueue = this.screenshotQueue.filter(
+      (filePath) => filePath !== filepath
+    );
+    this.extraScreenshotQueue = this.extraScreenshotQueue.filter(
+      (filePath) => filePath !== filepath
+    );
   }
 
   public async getImagePreview(filepath: string): Promise<string> {
@@ -407,21 +461,17 @@ export class ScreenshotHelper {
     path: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
+      if (this.isMissingManagedScreenshot(path)) {
+        this.removeManagedScreenshot(path);
+        return { success: true };
+      }
+
       if (!this.isRegularManagedScreenshot(path)) {
         return { success: false, error: "Screenshot is not managed" };
       }
 
       await fs.promises.unlink(path);
-
-      if (this.screenshotQueue.includes(path)) {
-        this.screenshotQueue = this.screenshotQueue.filter(
-          (filePath) => filePath !== path
-        );
-      } else {
-        this.extraScreenshotQueue = this.extraScreenshotQueue.filter(
-          (filePath) => filePath !== path
-        );
-      }
+      this.removeManagedScreenshot(path);
       return { success: true };
     } catch (error) {
       console.error("Error deleting file:", error);
